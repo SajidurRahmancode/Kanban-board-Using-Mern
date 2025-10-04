@@ -1,6 +1,8 @@
+// client/src/components/KanbanBoard.js
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useBoard } from '../context/BoardContext';
+import { AuthContext } from '../context/AuthContext';
 import styled from 'styled-components';
 
 const BoardContainer = styled.div`
@@ -80,45 +82,202 @@ const TaskDescription = styled.p`
   font-size: 0.9rem;
 `;
 
-const AddColumnButton = styled.button`
+const Button = styled.button`
   background: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
   padding: 0.5rem 1rem;
   cursor: pointer;
+  margin-right: 0.5rem;
   
   &:hover {
     background: #0056b3;
   }
 `;
 
+const DangerButton = styled.button`
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  
+  &:hover {
+    background: #c82333;
+  }
+`;
+
+const SecondaryButton = styled.button`
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  
+  &:hover {
+    background: #5a6268;
+  }
+`;
+
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 400px;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+`;
+
+const Select = styled.select`
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+`;
+
+const MemberList = styled.div`
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+`;
+
+const MemberItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
 const KanbanBoard = () => {
   const { id } = useParams();
-  const { currentBoard, loadBoard, addColumn, addTask, updateTask } = useBoard();
+  const { currentBoard, loadBoard, addColumn, addTask, updateTask, addMember, removeMember, updateMemberRole } = useBoard();
+  const { user } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+  
   const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState('member');
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [selectedColumnId, setSelectedColumnId] = useState('');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
 
+  // Add loadBoard to the dependency array
   useEffect(() => {
     if (id) {
       loadBoard(id);
     }
-  }, [id]);
+  }, [id, loadBoard]); // Include loadBoard here
+
+  // Add checks for currentBoard existence before accessing its properties
+  const isOwner = currentBoard?.owner?._id === user?._id;
+  // Use optional chaining and ensure m.user exists before accessing its _id
+  const currentMember = currentBoard?.members?.find(m => m.user?._id === user?._id);
+  const isAdmin = isOwner || currentMember?.role === 'admin';
+
+  // Define the missing functions:
 
   const handleAddColumn = async () => {
-    if (newColumnTitle.trim()) {
-      await addColumn(id, { title: newColumnTitle.trim() });
-      setNewColumnTitle('');
+    if (newColumnTitle.trim() && currentBoard) { // Check currentBoard exists
+      try {
+        await addColumn(currentBoard._id, { title: newColumnTitle.trim() });
+        setNewColumnTitle('');
+      } catch (error) {
+        console.error("Error adding column:", error);
+        // Optionally show an error message to the user
+      }
     }
   };
 
-  const handleAddTask = async (columnId) => {
-    const title = prompt('Enter task title:');
-    if (title) {
-      await addTask(id, {
-        columnId,
-        title,
-        description: ''
-      });
+   const handleAddTask = async (columnId) => {
+    if (newTaskTitle.trim() && currentBoard) {
+      try {
+        // Pass null or undefined for assignee if not selected
+        await addTask(currentBoard._id, {
+          columnId,
+          title: newTaskTitle.trim(),
+          description: newTaskDescription.trim(),
+          assignee: null, // Explicitly pass null if no assignee is selected
+          // dueDate: null, // Add if you have a due date input
+          // priority: 'medium' // Add if you have a priority selector
+        });
+        setNewTaskTitle('');
+        setNewTaskDescription('');
+        setShowAddTaskModal(false);
+      } catch (error) {
+        console.error("Error adding task:", error);
+        // Optionally show an error message to the user
+        alert("Failed to add task: " + (error.response?.data?.message || error.message));
+      }
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (newMemberEmail.trim() && currentBoard) { // Check currentBoard exists
+      try {
+        await addMember(currentBoard._id, { email: newMemberEmail.trim(), role: newMemberRole });
+        setNewMemberEmail('');
+        setShowAddMemberModal(false);
+      } catch (error) {
+        console.error("Error adding member:", error);
+        // Optionally show an error message to the user
+      }
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    if (window.confirm('Are you sure you want to remove this member?') && currentBoard) { // Check currentBoard exists
+      try {
+        await removeMember(currentBoard._id, userId);
+      } catch (error) {
+        console.error("Error removing member:", error);
+        // Optionally show an error message to the user
+      }
+    }
+  };
+
+  const handleUpdateMemberRole = async (userId, role) => {
+    if (currentBoard) { // Check currentBoard exists
+      try {
+        await updateMemberRole(currentBoard._id, userId, role);
+      } catch (error) {
+        console.error("Error updating member role:", error);
+        // Optionally show an error message to the user
+      }
     }
   };
 
@@ -136,17 +295,22 @@ const KanbanBoard = () => {
     const taskId = e.dataTransfer.getData('taskId');
     const sourceColumnId = e.dataTransfer.getData('sourceColumnId');
 
-    if (sourceColumnId !== targetColumnId) {
-      await updateTask(id, {
-        taskId,
-        columnId: sourceColumnId,
-        status: targetColumnId
-      });
+    if (sourceColumnId !== targetColumnId && currentBoard) { // Check currentBoard exists
+      try {
+        await updateTask(currentBoard._id, {
+          taskId,
+          columnId: sourceColumnId,
+          status: targetColumnId
+        });
+      } catch (error) {
+        console.error("Error moving task:", error);
+        // Optionally show an error message to the user
+      }
     }
   };
 
   if (!currentBoard) {
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Show loading state while data is being fetched
   }
 
   return (
@@ -154,17 +318,53 @@ const KanbanBoard = () => {
       <BoardHeader>
         <BoardTitle>{currentBoard.title}</BoardTitle>
         <div>
-          <input
-            type="text"
-            placeholder="New column title"
-            value={newColumnTitle}
-            onChange={(e) => setNewColumnTitle(e.target.value)}
-          />
-          <AddColumnButton onClick={handleAddColumn}>
-            Add Column
-          </AddColumnButton>
+          {isAdmin && ( // Only show admin buttons if user is admin or owner
+            <>
+              <input
+                type="text"
+                placeholder="New column title"
+                value={newColumnTitle}
+                onChange={(e) => setNewColumnTitle(e.target.value)}
+              />
+              <Button onClick={handleAddColumn}>Add Column</Button>
+              <Button onClick={() => setShowAddMemberModal(true)}>Add Member</Button>
+            </>
+          )}
+          <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
         </div>
       </BoardHeader>
+
+      {currentBoard.members && currentBoard.members.length > 0 && (
+        <MemberList>
+          <h3>Board Members</h3>
+          {currentBoard.members.map((member) => (
+            // Add a check to ensure member.user exists before rendering its properties
+            member.user && (
+              <MemberItem key={member.user._id}>
+                <div>
+                  <strong>{member.user.username}</strong> ({member.user.email}) - {member.role}
+                </div>
+                <div>
+                  {isAdmin && member.user._id !== user._id && (
+                    <>
+                      <Select
+                        value={member.role}
+                        onChange={(e) => handleUpdateMemberRole(member.user._id, e.target.value)}
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                      </Select>
+                      <DangerButton onClick={() => handleRemoveMember(member.user._id)}>
+                        Remove
+                      </DangerButton>
+                    </>
+                  )}
+                </div>
+              </MemberItem>
+            )
+          ))}
+        </MemberList>
+      )}
 
       <ColumnsContainer>
         {currentBoard.columns.map((column) => (
@@ -175,9 +375,12 @@ const KanbanBoard = () => {
           >
             <ColumnHeader>
               <ColumnTitle>{column.title}</ColumnTitle>
-              <button onClick={() => handleAddTask(column._id)}>
+              <Button onClick={() => {
+                setSelectedColumnId(column._id);
+                setShowAddTaskModal(true);
+              }}>
                 +
-              </button>
+              </Button>
             </ColumnHeader>
             <TasksContainer>
               {column.tasks.map((task) => (
@@ -196,6 +399,61 @@ const KanbanBoard = () => {
           </Column>
         ))}
       </ColumnsContainer>
+
+      {showAddMemberModal && (
+        <Modal>
+          <ModalContent>
+            <h2>Add Member</h2>
+            <Input
+              type="email"
+              placeholder="Member's email"
+              value={newMemberEmail}
+              onChange={(e) => setNewMemberEmail(e.target.value)}
+            />
+            {isAdmin && (
+              <Select
+                value={newMemberRole}
+                onChange={(e) => setNewMemberRole(e.target.value)}
+              >
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+              </Select>
+            )}
+            <div>
+              <Button onClick={handleAddMember}>Add Member</Button>
+              <SecondaryButton onClick={() => setShowAddMemberModal(false)}>
+                Cancel
+              </SecondaryButton>
+            </div>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {showAddTaskModal && (
+        <Modal>
+          <ModalContent>
+            <h2>Add Task</h2>
+            <Input
+              type="text"
+              placeholder="Task title"
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="Task description"
+              value={newTaskDescription}
+              onChange={(e) => setNewTaskDescription(e.target.value)}
+              style={{ width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '4px', fontSize: '1rem', minHeight: '100px' }}
+            />
+            <div>
+              <Button onClick={() => handleAddTask(selectedColumnId)}>Add Task</Button>
+              <SecondaryButton onClick={() => setShowAddTaskModal(false)}>
+                Cancel
+              </SecondaryButton>
+            </div>
+          </ModalContent>
+        </Modal>
+      )}
     </BoardContainer>
   );
 };

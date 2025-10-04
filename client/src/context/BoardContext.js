@@ -56,7 +56,20 @@ export const BoardProvider = ({ children }) => {
       return res.data;
     } catch (error) {
       console.error('Error loading board:', error);
-      throw error;
+      
+      // Clear current board on error
+      dispatch({ type: 'SET_CURRENT_BOARD', payload: null });
+      
+      // Re-throw with more specific error message
+      if (error.response?.status === 404) {
+        throw new Error('Board not found');
+      } else if (error.response?.status === 403) {
+        throw new Error('Access denied');
+      } else if (error.response?.status === 400) {
+        throw new Error('Invalid board ID');
+      } else {
+        throw new Error('Failed to load board');
+      }
     }
   };
 
@@ -160,6 +173,41 @@ export const BoardProvider = ({ children }) => {
     }
   };
 
+  const addMember = async (boardId, memberData) => {
+    try {
+      const res = await API.post(`/boards/${boardId}/members`, memberData);
+      dispatch({ type: 'UPDATE_BOARD', payload: res.data });
+      return res.data;
+    } catch (error) {
+      console.error('Error adding member:', error);
+      throw error;
+    }
+  };
+
+  const removeMember = async (boardId, userId) => {
+    try {
+      const res = await API.delete(`/boards/${boardId}/members`, { 
+        data: { userId } 
+      });
+      dispatch({ type: 'UPDATE_BOARD', payload: res.data });
+      return res.data;
+    } catch (error) {
+      console.error('Error removing member:', error);
+      throw error;
+    }
+  };
+
+  const updateMemberRole = async (boardId, userId, role) => {
+    try {
+      const res = await API.put(`/boards/${boardId}/members`, { userId, role });
+      dispatch({ type: 'UPDATE_BOARD', payload: res.data });
+      return res.data;
+    } catch (error) {
+      console.error('Error updating member role:', error);
+      throw error;
+    }
+  };
+
   return (
     <BoardContext.Provider value={{
       ...state,
@@ -173,7 +221,10 @@ export const BoardProvider = ({ children }) => {
       deleteColumn,
       addTask,
       updateTask,
-      deleteTask
+      deleteTask,
+      addMember,
+      removeMember,
+      updateMemberRole
     }}>
       {children}
     </BoardContext.Provider>

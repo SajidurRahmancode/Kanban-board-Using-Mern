@@ -47,6 +47,14 @@ const BoardDescription = styled.p`
   font-size: 0.9rem;
 `;
 
+const BoardMeta = styled.div`
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+  font-size: 0.8rem;
+  color: #888;
+`;
+
 const CreateBoardButton = styled.button`
   background: #007bff;
   color: white;
@@ -131,7 +139,7 @@ const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoard, setNewBoard] = useState({ title: '', description: '' });
   const { boards, loadBoards, createBoard } = useBoard();
-  const { logout } = React.useContext(AuthContext);
+  const { logout, user } = React.useContext(AuthContext);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -172,6 +180,10 @@ const Dashboard = () => {
             <BoardDescription>
               {board.description || 'No description'}
             </BoardDescription>
+            <BoardMeta>
+              <div>Owner: {board.owner.username}</div>
+              <div>Members: {board.members.length}</div>
+            </BoardMeta>
           </BoardCard>
         ))}
       </BoardsGrid>

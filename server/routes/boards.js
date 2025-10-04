@@ -12,7 +12,10 @@ const {
   deleteColumn,
   addTask,
   updateTask,
-  deleteTask
+  deleteTask,
+  addMember,
+  removeMember,
+  updateMemberRole
 } = require('../controllers/boardController');
 
 // Board routes
@@ -34,5 +37,10 @@ router.delete('/:id/columns', auth, deleteColumn);
 router.post('/:id/tasks', auth, addTask);
 router.put('/:id/tasks', auth, updateTask);
 router.delete('/:id/tasks', auth, deleteTask);
+
+// Member routes
+router.post('/:id/members', auth, addMember);
+router.delete('/:id/members', auth, removeMember);
+router.put('/:id/members', auth, updateMemberRole);
 
 module.exports = router;

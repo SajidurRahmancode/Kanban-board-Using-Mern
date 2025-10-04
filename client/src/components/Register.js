@@ -1,3 +1,4 @@
+// client/src/components/Register.js
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -114,6 +115,7 @@ const Register = () => {
           value={formData.password}
           onChange={handleChange}
           required
+          autoComplete="new-password" // Add this line
         />
         <Button type="submit" disabled={loading}>
           {loading ? 'Registering...' : 'Register'}

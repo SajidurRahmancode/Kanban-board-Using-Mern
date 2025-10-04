@@ -44,8 +44,16 @@ const boardSchema = new mongoose.Schema({
   description: String,
   columns: [columnSchema],
   members: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['admin', 'member'],
+      default: 'member'
+    }
   }],
   owner: {
     type: mongoose.Schema.Types.ObjectId,
