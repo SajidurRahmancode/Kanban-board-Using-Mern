@@ -21,19 +21,28 @@ const BoardsGrid = styled.div`
   gap: 1rem;
 `;
 
-const BoardCard = styled(Link)`
+const BoardCardContainer = styled.div`
+  position: relative;
   background: white;
   border-radius: 8px;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: inherit;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s, box-shadow 0.2s;
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    
+    .delete-button {
+      opacity: 1;
+    }
   }
+`;
+
+const BoardCard = styled(Link)`
+  display: block;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: inherit;
 `;
 
 const BoardTitle = styled.h3`
@@ -135,22 +144,78 @@ const CancelButton = styled(Button)`
   }
 `;
 
+const DeleteButton = styled.button`
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  
+  &:hover {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  &:active {
+    background: #f5c6cb;
+  }
+`;
+
+const TrashIcon = () => (
+  <svg 
+    width="16" 
+    height="16" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2"
+  >
+    <polyline points="3,6 5,6 21,6"></polyline>
+    <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+    <line x1="10" y1="11" x2="10" y2="17"></line>
+    <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>
+);
+
 const Dashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBoard, setNewBoard] = useState({ title: '', description: '' });
-  const { boards, loadBoards, createBoard } = useBoard();
+  const { boards, loadBoards, createBoard, deleteBoard } = useBoard();
   const { logout, user } = React.useContext(AuthContext);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadBoards();
-  }, []);
+  }, [loadBoards]);
 
   const handleCreateBoard = async () => {
     if (newBoard.title.trim()) {
       await createBoard(newBoard);
       setNewBoard({ title: '', description: '' });
       setShowCreateModal(false);
+    }
+  };
+
+  const handleDeleteBoard = async (boardId, boardTitle, event) => {
+    event.preventDefault(); // Prevent navigation to the board
+    event.stopPropagation();
+    
+    if (window.confirm(`Are you sure you want to delete the board "${boardTitle}"? This action cannot be undone and will delete all columns and tasks.`)) {
+      try {
+        await deleteBoard(boardId);
+      } catch (error) {
+        console.error("Error deleting board:", error);
+        alert("Failed to delete board: " + (error.response?.data?.message || error.message));
+      }
     }
   };
 
@@ -175,16 +240,27 @@ const Dashboard = () => {
 
       <BoardsGrid>
         {boards.map((board) => (
-          <BoardCard key={board._id} to={`/board/${board._id}`}>
-            <BoardTitle>{board.title}</BoardTitle>
-            <BoardDescription>
-              {board.description || 'No description'}
-            </BoardDescription>
-            <BoardMeta>
-              <div>Owner: {board.owner.username}</div>
-              <div>Members: {board.members.length}</div>
-            </BoardMeta>
-          </BoardCard>
+          <BoardCardContainer key={board._id}>
+            <BoardCard to={`/board/${board._id}`}>
+              <BoardTitle>{board.title}</BoardTitle>
+              <BoardDescription>
+                {board.description || 'No description'}
+              </BoardDescription>
+              <BoardMeta>
+                <div>Owner: {board.owner.username}</div>
+                <div>Members: {board.members.length}</div>
+              </BoardMeta>
+            </BoardCard>
+            {user && board.owner._id === user._id && (
+              <DeleteButton 
+                className="delete-button"
+                onClick={(e) => handleDeleteBoard(board._id, board.title, e)}
+                title="Delete board"
+              >
+                <TrashIcon />
+              </DeleteButton>
+            )}
+          </BoardCardContainer>
         ))}
       </BoardsGrid>
 
