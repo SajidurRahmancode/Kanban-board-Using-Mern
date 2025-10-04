@@ -58,18 +58,7 @@ const TasksContainer = styled.div`
   min-height: 100px;
 `;
 
-const Task = styled.div`
-  background: white;
-  border-radius: 4px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  
-  &:hover {
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-  }
-`;
+
 
 const TaskTitle = styled.h4`
   margin: 0 0 0.5rem 0;
@@ -181,9 +170,82 @@ const MemberItem = styled.div`
   }
 `;
 
+const DeleteButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  
+  &:hover {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  &:active {
+    background: #f5c6cb;
+  }
+`;
+
+const TaskActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+`;
+
+const TaskWithActions = styled.div`
+  position: relative;
+  background: white;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  
+  &:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    
+    ${TaskActions} {
+      opacity: 1;
+    }
+  }
+`;
+
+const ColumnActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const TrashIcon = () => (
+  <svg 
+    width="16" 
+    height="16" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2"
+  >
+    <polyline points="3,6 5,6 21,6"></polyline>
+    <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
+    <line x1="10" y1="11" x2="10" y2="17"></line>
+    <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>
+);
+
 const KanbanBoard = () => {
   const { id } = useParams();
-  const { currentBoard, loadBoard, addColumn, addTask, updateTask, addMember, removeMember, updateMemberRole } = useBoard();
+  const { currentBoard, loadBoard, addColumn, addTask, updateTask, deleteTask, deleteColumn, addMember, removeMember, updateMemberRole } = useBoard();
   const { user } = React.useContext(AuthContext);
   const navigate = useNavigate();
   
@@ -277,6 +339,28 @@ const KanbanBoard = () => {
       } catch (error) {
         console.error("Error updating member role:", error);
         // Optionally show an error message to the user
+      }
+    }
+  };
+
+  const handleDeleteColumn = async (columnId) => {
+    if (window.confirm('Are you sure you want to delete this column? All tasks in this column will be permanently deleted.') && currentBoard) {
+      try {
+        await deleteColumn(currentBoard._id, columnId);
+      } catch (error) {
+        console.error("Error deleting column:", error);
+        alert("Failed to delete column: " + (error.response?.data?.message || error.message));
+      }
+    }
+  };
+
+  const handleDeleteTask = async (columnId, taskId) => {
+    if (window.confirm('Are you sure you want to delete this task?') && currentBoard) {
+      try {
+        await deleteTask(currentBoard._id, columnId, taskId);
+      } catch (error) {
+        console.error("Error deleting task:", error);
+        alert("Failed to delete task: " + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -375,16 +459,26 @@ const KanbanBoard = () => {
           >
             <ColumnHeader>
               <ColumnTitle>{column.title}</ColumnTitle>
-              <Button onClick={() => {
-                setSelectedColumnId(column._id);
-                setShowAddTaskModal(true);
-              }}>
-                +
-              </Button>
+              <ColumnActions>
+                <Button onClick={() => {
+                  setSelectedColumnId(column._id);
+                  setShowAddTaskModal(true);
+                }}>
+                  +
+                </Button>
+                {isAdmin && (
+                  <DeleteButton 
+                    onClick={() => handleDeleteColumn(column._id)}
+                    title="Delete column"
+                  >
+                    <TrashIcon />
+                  </DeleteButton>
+                )}
+              </ColumnActions>
             </ColumnHeader>
             <TasksContainer>
               {column.tasks.map((task) => (
-                <Task
+                <TaskWithActions
                   key={task._id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task._id, column._id)}
@@ -393,7 +487,18 @@ const KanbanBoard = () => {
                   {task.description && (
                     <TaskDescription>{task.description}</TaskDescription>
                   )}
-                </Task>
+                  <TaskActions>
+                    <DeleteButton 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTask(column._id, task._id);
+                      }}
+                      title="Delete task"
+                    >
+                      <TrashIcon />
+                    </DeleteButton>
+                  </TaskActions>
+                </TaskWithActions>
               ))}
             </TasksContainer>
           </Column>
